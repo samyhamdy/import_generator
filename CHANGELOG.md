@@ -1,3 +1,6 @@
-## 1.0.0
+# Changelog
 
-- Initial version.
+## 0.0.1
+
+- 🎉 Initial release.
+- Generate categorized exports from `lib/`.

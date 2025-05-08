@@ -1,11 +1,26 @@
 name: import_generator
-description: A Dart CLI tool to generate a single exports file from your lib folder
+description: A Dart CLI tool to generate a single exports file from your lib folder.
 version: 0.0.1
+repository: https://github.com/samyhamdy/import_generator
+homepage: https://github.com/samyhamdy/import_generator
+issue_tracker: https://github.com/samyhamdy/import_generator/issues
+
 environment:
   sdk: ">=3.0.0 <4.0.0"
 
 dependencies:
   yaml: ^3.1.2
   path: ^1.8.3
+
 executables:
   import_generator: import_generator
+
+# Optional but recommended:
+topics:
+  - cli
+  - flutter
+  - generator
+  - export
+  - import
+
+publish_to: https://pub.dev
