@@ -23,4 +23,9 @@ topics:
   - export
   - import
 
-publish_to: https://pub.dev
+
+platforms:
+  android:
+  ios:
+  web:
+  macos:
