@@ -120,31 +120,30 @@ void main() {
   // 8. Process Dart files
   void processDirectory(Directory dir) {
     dir.listSync().forEach((entity) {
-      if (entity is Directory) {
-        if (!excludedDirs.any((dirName) => entity.path.endsWith(dirName))) {
-          processDirectory(entity);
+      final relativePath = path.relative(entity.path, from: libDir.path);
+      final posixPath = relativePath.replaceAll(r'\', '/');
+
+      final isExcludedByConfig = excludedPathsFromConfig.any((pattern) {
+        if (pattern.contains('**')) {
+          final regex = RegExp('^' + pattern.replaceAll('**', '.*') + r'$');
+          return regex.hasMatch(posixPath);
         }
+        return posixPath.startsWith(pattern);
+      });
+
+      if (isExcludedByConfig) {
+        if (entity is Directory) return;
+        if (entity is File) return;
+      }
+
+      if (entity is Directory) {
+        processDirectory(entity);
       } else if (entity is File &&
           entity.path.endsWith('.dart') &&
           !excludedFiles.any((ext) => entity.path.endsWith(ext)) &&
           path.basename(entity.path) != 'all_exports.dart') {
-        final relativePath = path.relative(entity.path, from: libDir.path);
-        final posixPath = relativePath.replaceAll(r'\', '/');
-
-        // Check against import_generator.yaml exclusions
-        final isExcludedByConfig = excludedPathsFromConfig.any((pattern) {
-          if (pattern.contains('**')) {
-            final regex = RegExp('^' + pattern.replaceAll('**', '.*') + r'$');
-            return regex.hasMatch(posixPath);
-          }
-          return posixPath.startsWith(pattern);
-        });
-
-        if (isExcludedByConfig) return;
-
         final exportPath = 'package:$projectName/$posixPath';
 
-        // Categorize
         if (posixPath.startsWith('ui/') || posixPath.startsWith('widgets/')) {
           exports['ui_components']!.add("export '$exportPath';");
         } else if (posixPath.startsWith('core/')) {

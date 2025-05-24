@@ -16,17 +16,24 @@ A Dart CLI tool that automatically generates a single `all_exports.dart` file fo
 
 ---
 
-## 🛠 Usage
 
-### 1. Add the dependency
 
+## Getting Started
+
+1. **Add dependency:**
 In your `pubspec.yaml`:
-
 ```yaml
 dev_dependencies:
   import_generator: ^0.0.3
+```
 
-Run the following command to generate the `all_exports.dart` file:
+2. `Install Package` In your project:
+```
+flutter pub get
+```
 
-```shell
+3. `Run The Following Command` In your Root Terminal:
+```
 dart run import_generator
+```
+
