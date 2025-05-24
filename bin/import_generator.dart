@@ -12,7 +12,7 @@ void main() {
     return;
   }
 
-  // 2. Read project config
+  // 2. Read project config (pubspec.yaml)
   final pubspecFile = File(path.join(projectDir.path, 'pubspec.yaml'));
   if (!pubspecFile.existsSync()) {
     print('❌ Error: pubspec.yaml not found');
@@ -23,7 +23,22 @@ void main() {
   final pubspecYaml = loadYaml(pubspecContent);
   final projectName = pubspecYaml['name'];
 
-  // 3. Exclusion lists
+  // 3. Read import_generator.yaml config
+  final configFile = File(path.join(projectDir.path, 'import_generator.yaml'));
+  final List<String> excludedPathsFromConfig = [];
+
+  if (configFile.existsSync()) {
+    final configContent = loadYaml(configFile.readAsStringSync());
+    if (configContent is YamlMap &&
+        configContent.containsKey('exclude_paths')) {
+      final paths = configContent['exclude_paths'];
+      if (paths is YamlList) {
+        excludedPathsFromConfig.addAll(paths.map((e) => e.toString()));
+      }
+    }
+  }
+
+  // 4. Exclusion lists
   final excludedDirs = [
     'build',
     '.dart_tool',
@@ -41,16 +56,16 @@ void main() {
 
   final excludedFiles = ['.g.dart', '.freezed.dart', '.gr.dart', '.pb.dart'];
 
-  // 4. Create exports file
+  // 5. Create output file
   final generatedFile =
       File(path.join(libDir.path, 'core', 'all_exports.dart'));
   generatedFile.parent.createSync(recursive: true);
 
-  // 5. Export structure with Flutter UI categories
+  // 6. Export structure
   final exports = {
     'dart_core': [
       "// ┌───────────────────────────┐",
-      "// │       Dart Core          │",
+      "// │       Dart Core           │",
       "// └───────────────────────────┘",
       "export 'dart:async';",
       "export 'dart:convert';",
@@ -58,7 +73,7 @@ void main() {
     ],
     'flutter_core': [
       "// ┌───────────────────────────┐",
-      "// │      Flutter Core        │",
+      "// │      Flutter Core         │",
       "// └───────────────────────────┘",
       "export 'package:flutter/material.dart' hide RefreshCallback;",
       "export 'package:flutter/cupertino.dart';",
@@ -66,32 +81,32 @@ void main() {
     ],
     'external': [
       "// ┌───────────────────────────┐",
-      "// │     External Packages    │",
+      "// │     External Packages     │",
       "// └───────────────────────────┘",
     ],
     'ui_components': [
       "// ┌───────────────────────────┐",
-      "// │     UI Components       │",
+      "// │      UI Components        │",
       "// └───────────────────────────┘",
     ],
     'app_core': [
       "// ┌───────────────────────────┐",
-      "// │      App Core            │",
+      "// │        App Core           │",
       "// └───────────────────────────┘",
     ],
     'features': [
       "// ┌───────────────────────────┐",
-      "// │      Features            │",
+      "// │        Features           │",
       "// └───────────────────────────┘",
     ],
     'utils': [
       "// ┌───────────────────────────┐",
-      "// │      Utilities           │",
+      "// │        Utilities          │",
       "// └───────────────────────────┘",
     ]
   };
 
-  // 6. Add external packages
+  // 7. Add external packages
   if (pubspecYaml.containsKey('dependencies')) {
     final dependencies = pubspecYaml['dependencies'] as YamlMap;
     dependencies.keys.forEach((package) {
@@ -99,10 +114,10 @@ void main() {
         exports['external']!.add("export 'package:$package/$package.dart';");
       }
     });
-    exports['external']!.add("");
+    exports['external']!.add(""); // For spacing
   }
 
-  // 7. Process project files
+  // 8. Process Dart files
   void processDirectory(Directory dir) {
     dir.listSync().forEach((entity) {
       if (entity is Directory) {
@@ -114,24 +129,35 @@ void main() {
           !excludedFiles.any((ext) => entity.path.endsWith(ext)) &&
           path.basename(entity.path) != 'all_exports.dart') {
         final relativePath = path.relative(entity.path, from: libDir.path);
-        final exportPath =
-            'package:$projectName/${relativePath.replaceAll(r'\', '/')}';
+        final posixPath = relativePath.replaceAll(r'\', '/');
 
-        // Categorize files
-        if (relativePath.startsWith('ui/') ||
-            relativePath.startsWith('widgets/')) {
+        // Check against import_generator.yaml exclusions
+        final isExcludedByConfig = excludedPathsFromConfig.any((pattern) {
+          if (pattern.contains('**')) {
+            final regex = RegExp('^' + pattern.replaceAll('**', '.*') + r'$');
+            return regex.hasMatch(posixPath);
+          }
+          return posixPath.startsWith(pattern);
+        });
+
+        if (isExcludedByConfig) return;
+
+        final exportPath = 'package:$projectName/$posixPath';
+
+        // Categorize
+        if (posixPath.startsWith('ui/') || posixPath.startsWith('widgets/')) {
           exports['ui_components']!.add("export '$exportPath';");
-        } else if (relativePath.startsWith('core/')) {
-          if (relativePath.contains('/utils/') ||
-              relativePath.contains('/helpers/')) {
+        } else if (posixPath.startsWith('core/')) {
+          if (posixPath.contains('/utils/') ||
+              posixPath.contains('/helpers/')) {
             exports['utils']!.add("export '$exportPath';");
           } else {
             exports['app_core']!.add("export '$exportPath';");
           }
-        } else if (relativePath.startsWith('features/')) {
+        } else if (posixPath.startsWith('features/')) {
           exports['features']!.add("export '$exportPath';");
-        } else if (relativePath.startsWith('utils/') ||
-            relativePath.startsWith('helpers/')) {
+        } else if (posixPath.startsWith('utils/') ||
+            posixPath.startsWith('helpers/')) {
           exports['utils']!.add("export '$exportPath';");
         } else {
           exports['app_core']!.add("export '$exportPath';");
@@ -142,7 +168,7 @@ void main() {
 
   processDirectory(libDir);
 
-  // 8. Generate the file
+  // 9. Write to file
   final content = [
     "// GENERATED FILE - DO NOT EDIT",
     "// Main exports file for $projectName\n",
@@ -153,13 +179,13 @@ void main() {
     ...exports['utils']!,
     ...exports['ui_components']!,
     ...exports['features']!,
-    "\n// Generated by export_generator.dart"
+    "\n// Generated by import_generator"
   ].join('\n');
 
   generatedFile.writeAsStringSync(content);
   print('✅ Generated exports file: ${generatedFile.path}');
 
-  // 9. Format the file
+  // 10. Format the file
   try {
     Process.runSync('dart', ['format', generatedFile.path]);
     print('🎨 Formatted generated file');

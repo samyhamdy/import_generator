@@ -1,32 +1,30 @@
 # import_generator
 
-A Dart CLI tool to generate a single `all_exports.dart` file from your `lib/` folder.
+A Dart CLI tool that automatically generates a single `all_exports.dart` file for your project, simplifying the task of organizing and categorizing imports across your `lib/` folder.
 
-## 🚀 Features
-
-- Auto-generates a clean, categorized export file.
-- Supports Flutter, Dart core, external packages, and project files.
-
-## 🛠 Usage
-
-1. Add the dependency:
-
-```yaml
-dev_dependencies:
-  import_generator: ^0.0.2
-
-
-# import_generator
-
-A Dart CLI tool that automatically generates a single `all_exports.dart` file for your project, simplifying the task of organizing and categorizing imports across your project.
+---
 
 ## 🚀 Features
 
 - Automatically generates a clean and categorized `all_exports.dart` file.
-- Supports Flutter, Dart core, external packages, and project-specific files.
+- Supports:
+  - Dart core libraries
+  - Flutter core
+  - External packages
+  - Project-specific files
+- Optional config file to exclude specific paths.
 
+---
 
-### 1. Setup the config file
+## 🛠 Usage
+
+### 1. Add the dependency
+
+In your `pubspec.yaml`:
+
+```yaml
+dev_dependencies:
+  import_generator: ^0.0.3
 
 Run the following command to generate the `all_exports.dart` file:
 
