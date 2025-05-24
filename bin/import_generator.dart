@@ -26,14 +26,22 @@ void main() {
   // 3. Read import_generator.yaml config
   final configFile = File(path.join(projectDir.path, 'import_generator.yaml'));
   final List<String> excludedPathsFromConfig = [];
+  final List<String> excludedPackages = [];
 
   if (configFile.existsSync()) {
     final configContent = loadYaml(configFile.readAsStringSync());
-    if (configContent is YamlMap &&
-        configContent.containsKey('exclude_paths')) {
-      final paths = configContent['exclude_paths'];
-      if (paths is YamlList) {
-        excludedPathsFromConfig.addAll(paths.map((e) => e.toString()));
+    if (configContent is YamlMap) {
+      if (configContent.containsKey('exclude_paths')) {
+        final paths = configContent['exclude_paths'];
+        if (paths is YamlList) {
+          excludedPathsFromConfig.addAll(paths.map((e) => e.toString()));
+        }
+      }
+      if (configContent.containsKey('exclude_packages')) {
+        final packages = configContent['exclude_packages'];
+        if (packages is YamlList) {
+          excludedPackages.addAll(packages.map((e) => e.toString()));
+        }
       }
     }
   }
@@ -64,45 +72,37 @@ void main() {
   // 6. Export structure
   final exports = {
     'dart_core': [
-      "// ┌───────────────────────────┐",
+      "// ┌────────────────────────────────┐",
       "// │       Dart Core           │",
-      "// └───────────────────────────┘",
+      "// └────────────────────────────────┘",
       "export 'dart:async';",
       "export 'dart:convert';",
       "export 'dart:math';\n",
     ],
     'flutter_core': [
-      "// ┌───────────────────────────┐",
+      "// ┌────────────────────────────────┐",
       "// │      Flutter Core         │",
-      "// └───────────────────────────┘",
+      "// └────────────────────────────────┘",
       "export 'package:flutter/material.dart' hide RefreshCallback;",
       "export 'package:flutter/cupertino.dart';",
       "export 'package:flutter/widgets.dart';\n",
     ],
     'external': [
-      "// ┌───────────────────────────┐",
+      "// ┌────────────────────────────────┐",
       "// │     External Packages     │",
-      "// └───────────────────────────┘",
+      "// └────────────────────────────────┘",
     ],
     'ui_components': [
-      "// ┌───────────────────────────┐",
-      "// │      UI Components        │",
-      "// └───────────────────────────┘",
+      "// UI Components",
     ],
     'app_core': [
-      "// ┌───────────────────────────┐",
-      "// │        App Core           │",
-      "// └───────────────────────────┘",
+      "// App Core",
     ],
     'features': [
-      "// ┌───────────────────────────┐",
-      "// │        Features           │",
-      "// └───────────────────────────┘",
+      "// Features",
     ],
     'utils': [
-      "// ┌───────────────────────────┐",
-      "// │        Utilities          │",
-      "// └───────────────────────────┘",
+      "// Utilities",
     ]
   };
 
@@ -110,7 +110,9 @@ void main() {
   if (pubspecYaml.containsKey('dependencies')) {
     final dependencies = pubspecYaml['dependencies'] as YamlMap;
     dependencies.keys.forEach((package) {
-      if (package != 'flutter' && package is String) {
+      if (package != 'flutter' &&
+          package is String &&
+          !excludedPackages.contains(package)) {
         exports['external']!.add("export 'package:$package/$package.dart';");
       }
     });
@@ -125,7 +127,7 @@ void main() {
 
       final isExcludedByConfig = excludedPathsFromConfig.any((pattern) {
         if (pattern.contains('**')) {
-          final regex = RegExp('^' + pattern.replaceAll('**', '.*') + r'$');
+          final regex = RegExp('^' + pattern.replaceAll('**', '.*') + r'\$');
           return regex.hasMatch(posixPath);
         }
         return posixPath.startsWith(pattern);
@@ -143,6 +145,10 @@ void main() {
           !excludedFiles.any((ext) => entity.path.endsWith(ext)) &&
           path.basename(entity.path) != 'all_exports.dart') {
         final exportPath = 'package:$projectName/$posixPath';
+
+        final isExcludedPackage = excludedPackages
+            .any((pkg) => exportPath.startsWith('package:$pkg/'));
+        if (isExcludedPackage) return;
 
         if (posixPath.startsWith('ui/') || posixPath.startsWith('widgets/')) {
           exports['ui_components']!.add("export '$exportPath';");
